@@ -1,6 +1,7 @@
 {
 	"nameShort": "code-server",
-	"nameLong": "code-server",
+	"nameLong": "鲲鹏云IDE",
+  "linkProtectionTrustedDomains": ["*"],
 	"applicationName": "code-oss",
 	"dataFolderName": ".vscode-oss",
 	"win32MutexName": "vscodeoss",

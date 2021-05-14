@@ -67,7 +67,8 @@ export class Vscode {
 	private readonly ipc = new IPCServer<RemoteAgentConnectionContext>(this.onDidClientConnect);
 
 	private readonly maxExtraOfflineConnections = 0;
-	private readonly connections = new Map<ConnectionType, Map<string, Connection>>();
+  private readonly connections = new Map<string, Connection>();
+
 
 	private readonly services = new ServiceCollection();
 	private servicesPromise?: Promise<void>;
@@ -127,8 +128,13 @@ export class Vscode {
 			permessageDeflate,
 		});
 		try {
+      if (protocol.options.reconnection && !this.connections.has(protocol.options.reconnectionToken)) {
+        throw new Error('Unrecognized reconnection token');
+      }
 			await this.connect(await protocol.handshake(), protocol);
 		} catch (error) {
+      logger.error('Connect websocket error');
+      logger.error(error);
 			protocol.destroy(error.message);
 		}
 		return true;
@@ -143,10 +149,7 @@ export class Vscode {
 			case ConnectionType.ExtensionHost:
 			case ConnectionType.Management:
 				// Initialize connection map for this type of connection.
-				if (!this.connections.has(message.desiredConnectionType)) {
-					this.connections.set(message.desiredConnectionType, new Map());
-				}
-				const connections = this.connections.get(message.desiredConnectionType)!;
+				const connections = this.connections;
 
 				const token = protocol.options.reconnectionToken;
 				let connection = connections.get(token);
@@ -312,3 +315,8 @@ export class Vscode {
 		});
 	}
 }
+
+process.on('uncaughtException', (error: any) => {
+  logger.error('VSCode uncaughtException');
+  logger.error(error);
+});

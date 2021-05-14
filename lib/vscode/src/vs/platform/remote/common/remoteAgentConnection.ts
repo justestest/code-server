@@ -555,6 +555,19 @@ abstract class PersistentConnection extends Disposable {
 		}
 	}
 
+  private async networkIsConnected(): Promise<true> {
+    while (true) {
+      try {
+        await fetch('./healthz');
+        break;
+      } catch (e) {
+        this.protocol.getSocket().dispose();
+        await sleep(2);
+      }
+    }
+    return true;
+  }
+
 	private async _runReconnectingLoop(): Promise<void> {
 		if (PersistentConnection._permanentFailure) {
 			// no more attempts!
@@ -587,7 +600,8 @@ abstract class PersistentConnection extends Disposable {
 
 				// connection was lost, let's try to re-establish it
 				this._onDidStateChange.fire(new ReconnectionRunningEvent(this.reconnectionToken, this.protocol.getMillisSinceLastIncomingData(), attempt + 1));
-				this._options.logService.info(`${logPrefix} resolving connection...`);
+        await this.networkIsConnected();
+        this._options.logService.info(`${logPrefix} resolving connection...`);
 				const simpleOptions = await resolveConnectionOptions(this._options, this.reconnectionToken, this.protocol);
 				this._options.logService.info(`${logPrefix} connecting to ${simpleOptions.host}:${simpleOptions.port}...`);
 				await this._reconnect(simpleOptions, createTimeoutCancellation(RECONNECT_TIMEOUT));

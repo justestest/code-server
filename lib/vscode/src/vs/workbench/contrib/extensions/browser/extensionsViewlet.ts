@@ -517,7 +517,7 @@ export class ExtensionsViewPaneContainer extends ViewPaneContainer implements IE
 		// NOTE@coder this UI element helps users understand the extension marketplace divergence
 		const extensionHelperLocalStorageKey = 'coder.extension-help-message';
 
-		if (localStorage.getItem(extensionHelperLocalStorageKey) === null) {
+		if (!!false && localStorage.getItem(extensionHelperLocalStorageKey) === null) {
 			const helperHeader = append(this.root, $('.header'));
 			helperHeader.id = 'codeServerMarketplaceHelper';
 			helperHeader.style.height = 'auto';

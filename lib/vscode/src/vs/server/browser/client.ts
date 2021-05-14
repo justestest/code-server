@@ -87,7 +87,7 @@ export const initialize = async (services: ServiceCollection): Promise<void> => 
 		});
 	}
 
-	if (!window.isSecureContext) {
+	if (!!false && !window.isSecureContext) {
 		(services.get(INotificationService) as INotificationService).notify({
 			severity: Severity.Warning,
 			message: 'code-server is being accessed over an insecure domain. Web views, the clipboard, and other functionality will not work as expected.',

@@ -30,7 +30,7 @@ router.get("/", async (req, res) => {
     await fs.readFile(path.join(rootPath, "src/browser/pages/vscode.html"), "utf8"),
     (async () => {
       try {
-        return await vscode.initialize({ args: req.args, remoteAuthority: req.headers.host || "" }, req.query)
+        return await vscode.initialize({ args: req.args, remoteAuthority: "鲲鹏云IDE" }, req.query)
       } catch (error) {
         const devMessage = isDevMode ? "It might not have finished compiling." : ""
         throw new Error(`VS Code failed to load. ${devMessage} ${error.message}`)
