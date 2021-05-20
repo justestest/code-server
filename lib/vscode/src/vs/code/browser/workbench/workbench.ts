@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import * as browser from 'vs/base/browser/browser';
 import { IWorkbenchConstructionOptions, create, ICredentialsProvider, IURLCallbackProvider, IWorkspaceProvider, IWorkspace, IWindowIndicator, IProductQualityChangeHandler, ISettingsSyncOptions } from 'vs/workbench/workbench.web.api';
 import { URI, UriComponents } from 'vs/base/common/uri';
 import { Event, Emitter } from 'vs/base/common/event';
@@ -299,6 +300,9 @@ class WorkspaceProvider implements IWorkspaceProvider {
 				} else {
 					result = window.open(targetHref);
 				}
+        if (browser.isElectron || browser.isEdgeLegacyWebView) {
+          result = true;
+        }
 
 				return !!result;
 			}
