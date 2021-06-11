@@ -234,7 +234,7 @@ export class RemoteStatusIndicator extends Disposable implements IWorkbenchContr
 
 		// Remote Authority: show connection state
 		if (this.remoteAuthority) {
-			const hostLabel = this.labelService.getHostLabel(Schemas.vscodeRemote, this.remoteAuthority) || this.remoteAuthority;
+			const hostLabel = '鲲鹏云IDE' || this.labelService.getHostLabel(Schemas.vscodeRemote, this.remoteAuthority) || this.remoteAuthority;
 			switch (this.connectionState) {
 				case 'initializing':
 					this.renderRemoteStatusIndicator(nls.localize('host.open', "Opening Remote..."), nls.localize('host.open', "Opening Remote..."), undefined, true /* progress */);

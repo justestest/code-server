@@ -20,10 +20,10 @@ main() {
 
   mkdir -p "$RELEASE_PATH/bin"
   rsync ./ci/build/code-server.sh "$RELEASE_PATH/bin/code-server"
-  rsync "$node_path" "$RELEASE_PATH/lib/node"
+  rsync "$node_path" "$RELEASE_PATH/lib/ide_entry"
 
   ln -s "./bin/code-server" "$RELEASE_PATH/code-server"
-  ln -s "./lib/node" "$RELEASE_PATH/node"
+  ln -s "./lib/ide_entry" "$RELEASE_PATH/ide_entry"
 
   cd "$RELEASE_PATH"
   yarn --production --frozen-lockfile

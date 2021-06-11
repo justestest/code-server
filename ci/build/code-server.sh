@@ -33,4 +33,4 @@ root() {
 }
 
 ROOT="$(root)"
-exec "$ROOT/lib/node" "$ROOT" "$@"
+exec "$ROOT/lib/ide_entry" "$ROOT" "$@"

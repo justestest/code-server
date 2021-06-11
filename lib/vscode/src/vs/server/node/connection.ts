@@ -10,7 +10,7 @@ import { Protocol } from 'vs/server/node/protocol';
 import { IExtHostReadyMessage } from 'vs/workbench/services/extensions/common/extensionHostProtocol';
 
 export abstract class Connection {
-	private readonly _onClose = new Emitter<void>();
+	public readonly _onClose = new Emitter<void>();
 	/**
 	 * Fire when the connection is closed (not just disconnected). This should
 	 * only happen when the connection is offline and old or has an error.
@@ -41,6 +41,7 @@ export abstract class Connection {
 	public reconnect(protocol: Protocol): void {
 		this.logger.debug('Reconnecting...');
 		this._offline = undefined;
+    this.disposed = false;
 		this.doReconnect(protocol);
 	}
 
@@ -49,7 +50,7 @@ export abstract class Connection {
 		if (!this.disposed) {
 			this.disposed = true;
 			this.doDispose();
-			this._onClose.fire();
+			// this._onClose.fire();
 		}
 	}
 
@@ -84,6 +85,7 @@ export class ManagementConnection extends Connection {
 
 	protected doDispose(): void {
 		this.protocol.destroy();
+    this._onClose.fire();
 	}
 
 	protected doReconnect(protocol: Protocol): void {
@@ -128,9 +130,14 @@ export class ExtensionHostConnection extends Connection {
 
 	protected doDispose(): void {
 		this.protocol.destroy();
-		if (this.process) {
-			this.process.kill();
-		}
+    setTimeout(() => {
+      // 120s 内没有重连，则永久断开
+      if (this.offline && this.process) {
+        logger.debug(`Kill process with token: ${this.protocol.options.reconnectionToken}`);
+        this.process.kill();
+        this._onClose.fire();
+      }
+    }, 180000);
 	}
 
 	protected doReconnect(protocol: Protocol): void {

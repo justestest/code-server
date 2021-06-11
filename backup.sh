@@ -1,0 +1,259 @@
+#!/usr/bin/env bash
+# git-backup
+#
+#	@originalAuthor		Kipras Melnikovas (kipras.org) <kipras@kipras.org>
+#	@license			GPL-3.0
+#
+#	@usage
+# 1) use this script directly or
+# 2) set a git alias for it:
+#
+# ``` ~/.gitconfig:
+# [alias]
+#	backup = !git-backup
+# ```
+#
+#	@description
+# 'exec' is used for 'silent' mode
+#
+# 'silent' mode can be useful if you only want to get
+# the generated branches' name
+#
+
+programName="git-backup"
+version="0.2.1"
+repository="https://github.com/sarpik/git-backup"
+issues="$repository/issues"
+
+### TODO - simplify
+usage="\
+Usage:
+$ git-backup [OPTION]...
+Options:
+       -r REMOTE
+              change to which remote to push the backup branch to; default=origin
+       -c CHAR_COUNT
+              max  number  of characters for the branch name.  Your remote / git might complain that the branch name is too long. You can limit it's length
+              here; default=255
+       -l     local mode. Do NOT push the generated branch to remote; default=false
+       -q     quiet mode. Print only the backup branches' name; NOTE that you might get prompted for the passphrase/password to access the remote! default=false
+       -m     display the manual page (git-backup(1)) and exit
+       -h     display this help and exit
+Examples:
+      $ git-backup
+      $ git-backup -lq
+      $ git-backup -r upstream -c 128
+Bugs:
+       If you find issues, please report them:
+       $issues
+$programName $version \
+"
+
+checkManualPage() {
+	man "$1" >/dev/null 2>&1
+}
+
+showUsageManual() {
+	checkManualPage "$programName" && man "$programName"
+}
+
+showUsageRaw() {
+	printf "%s\n" "$usage"
+}
+
+# create function
+git_backup() {
+	# setup
+
+	exec 6>&1 # saves stdout (see -q)
+
+	# -q => quiet mode (return only generated branch name)
+	while getopts ":r:c:qlmh" opt; do
+		case "${opt}" in
+			r)
+				remoteRepoName="${OPTARG}"
+				;;
+			c)
+				branchNameCharCount="${OPTARG}"
+				# shift # forward argv by one option
+				;;
+			q)
+				exec > /dev/null  # redirect stdout to /dev/null
+				# shift # forward argv by one option
+				;;
+			l)
+				shouldPushBranchToRemote="false"
+				# shift # forward argv by one option
+				;;
+			m)
+				showUsageManual
+				exit
+				;;
+			h)
+				showUsageRaw
+				exit
+				;;
+			*)
+				printf "unmatched option\n\n"
+				showUsageRaw
+				exit 1
+				;;
+		esac
+	done
+
+	printf "==> git-backup:\n"
+
+	# make sure git repo exists
+	git status >/dev/null 2>&1 || {
+		# restore stdout EARLY to allow the printing of the error
+		exec 1>&6 6>&-
+
+		printf " -> error! Git repository NOT found!\n"
+		return 1
+	}
+
+	# check if the working directory is NOT clean before performing a backup
+	git status | grep "nothing to commit, working tree clean" >/dev/null 2>&1 && {
+		# restore stdout EARLY to allow the printing of the error
+		exec 1>&6 6>&-
+
+		printf " -> nothing to commit, working tree clean.\n"
+		return 1
+	}
+
+	# -r
+	[ -z "$remoteRepoName" ] && remoteRepoName="origin"
+
+	# -l
+	[ -z "$shouldPushBranchToRemote" ] && shouldPushBranchToRemote="true"
+
+	# -c
+	[ -z "$branchNameCharCount" ] && branchNameCharCount="255"
+
+	if [ "$shouldPushBranchToRemote" = "true" ]; then
+		# make sure the remote is present
+
+		if git remote -v | grep -q "$remoteRepoName" >/dev/null 2>&1; then
+			shouldPushBranchToRemote="true"
+			printf " -> remote (%s) found!\n" "$remoteRepoName"
+		else
+			shouldPushBranchToRemote="false"
+			printf " -> remote (%s) NOT found!\n" "$remoteRepoName"
+		fi
+	else
+		printf " -> remote ignored.\n"
+	fi
+
+	## get current branch
+	#currentBranch="$(git rev-parse --abbrev-ref HEAD)" && \
+
+	# get current username (if it's set), or get the user.name
+	# and sanitize the selected one (replace spaces with dashes and make letters lowercase)
+	currentUsername="$(printf "%s" "$(git config user.username || git config user.name || echo admin)" | sed 's/\s/-/g' | awk '{ print tolower($0) }')" && \
+
+	#
+	# make sure we're NOT inside an untracked directory
+	#
+	# by 'cd'ing into the root directory of the current git repository.
+	# https://github.com/sarpik/git-backup/issues/10
+	#
+	# this does not affect the users directory
+	# since scripts run inside subshells
+	#
+	# Note: In a submodule, this will display the root directory
+	# of the submodule and not the parent repository!
+	#
+	# https://stackoverflow.com/a/957978/9285308
+	#
+	# ❗👆 here I also found that you can have an alias for git like
+	# exec = "!exec "
+	# git config --global alias.exec "!exec "
+	#
+	# to run anything inside the root of the git repo,
+	# which is crazy awesome and useful
+	# (for example, git exec make)!
+	#
+	absolutePathToGitRootDirectory="$(git rev-parse --show-toplevel)"
+	cd "$absolutePathToGitRootDirectory" || {
+		printf "  -> Failed to \`cd' into the root of git repository (%s)" "$absolutePathToGitRootDirectory"
+		printf "     Exiting"
+		return 1
+	}
+
+	# END setup
+
+	# BEGIN action!
+
+	# git stash -u
+	### TODO - take a look at "git stash create"
+	git stash push --include-untracked >/dev/null 2>&1 && \
+
+	# mark that we stashed so that if something fails, we STILL pop the stash back
+	stashed="true" && \
+
+	# --format: '%f' => "sanitized subject line, suitable for a filename" (GIT-LOG(1))
+	# contains '<authorDate (UNIX timestamp)>--<stashCommitId>--WIP-on-<branchName>-<stashCommitHash>-<parentCommitTitle>'
+	subjectLine="$(git stash list --format='%at--%h--%f' | head -n 1)" && \
+
+	#
+	# generate backup branch name
+	#
+	# we use "wip" here because github ignores
+	# the last chars from ascii, such as "_"
+	# (probably matching with the regex "[a-zA-Z-]"),
+	#
+	# and we do NOT want the backup branches to take over
+	# the actually used & active branches,
+	#
+	# hence we want them to be at the bottom of the list,
+	# and 'w' is pretty close to the end of the alphabet
+	# while still making sense from the "wip".
+	#
+	backupBranchName="$(date +%F)/$currentUsername/$subjectLine" && \
+
+	# limit branch name to N chars
+	# (.lock adds the last 5 to filename when git creates it)
+	### TODO - still not done - git still fails
+	### TODO - figure out max length
+	backupBranchName="${backupBranchName:0:$branchNameCharCount}" && \
+
+	# create the backup branch from the latest stash
+	git branch "$backupBranchName" "stash@{0}" && \
+
+	# get your changes back
+	git stash pop --quiet && \
+	stashed="false" && \
+
+	# push to remote repo
+	if [ "$shouldPushBranchToRemote" = "true" ]; then
+		printf "==> Pushing to remote repo (%s)\n" "$remoteRepoName" && \
+		git push "$remoteRepoName" "$backupBranchName" >/dev/null 2>&1 || {
+			printf " -> Failed 'git push'.\n"
+			return 1
+		}
+	fi && \
+
+	printf " -> Successfully backed up current changes\n" && \
+	printf " -> Backup branch (use -q to print only it): \n" && \
+
+	# restore stdout (does NOT print it though (good))
+	exec 1>&6 6>&- && \
+	printf "%s\n" "$backupBranchName" &&
+	return 0 || {
+		# handle errors if something failed
+		printf " -> Something failed!\n"
+
+		[ "$stashed" = "true" ] && {
+			printf " -> popping stash back (git stash pop)\n"
+			git stash pop | grep "Dropped.*stash.*\(.*\)" && \
+			stashed="false"
+		}
+
+		return 1
+	}
+
+	# END action!
+};
+
+# call the function
+git_backup "$@" && exit 0 || exit 1

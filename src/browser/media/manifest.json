@@ -1,6 +1,6 @@
 {
-  "name": "code-server",
-  "short_name": "code-server",
+  "name": "鲲鹏云IDE",
+  "short_name": "鲲鹏云IDE",
   "start_url": "{{BASE}}",
   "display": "fullscreen",
   "background-color": "#fff",
