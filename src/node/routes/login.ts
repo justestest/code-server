@@ -85,10 +85,21 @@ router.post("/", async (req, res) => {
     if (isPasswordValid) {
       // The hash does not add any actual security but we do it for
       // obfuscation purposes (and as a side effect it handles escaping).
+
+      let extraParams = {}
+      if (req.query.embed) {
+        // 如果嵌在iframe里面，需要设置此参数
+        extraParams = {
+          sameSite: "none",
+          secure: !/\bElectron\b/.test(req.headers["user-agent"] || ""),
+        }
+      }
+
       res.cookie(Cookie.Key, hashedPassword, {
         domain: getCookieDomain(req.headers.host || "", req.args["proxy-domain"]),
         path: req.body.base || "/",
-        sameSite: "lax",
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        ...extraParams,
       })
 
       const to = (typeof req.query.to === "string" && req.query.to) || "/"
