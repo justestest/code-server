@@ -18,4 +18,4 @@ coverage
 **/.DS_Store
 # Failed e2e test videos are saved here
 test/test-results
-code-server.tar.gz
+/code-server.tar.gz
