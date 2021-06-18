@@ -5,10 +5,46 @@ const options = getOptions()
 // TODO: Add proper types.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-let nlsConfig: any
+export const nlsConfigElementId = "vscode-remote-nls-configuration"
+
+type NlsConfiguration = {
+  locale: string
+  availableLanguages: { [key: string]: string } | {}
+  _languagePackId?: string
+  _translationsConfigFile?: string
+  _cacheRoot?: string
+  _resolvedLanguagePackCoreLocation?: string
+  _corruptedFile?: string
+  _languagePackSupport?: boolean
+  loadBundle?: any
+}
+
+/**
+ * A helper function to get the NLS Configuration settings.
+ *
+ * This is used by VSCode for localizations (i.e. changing
+ * the display language).
+ **/
+export function getNlsConfiguration(document: Document) {
+  const nlsConfigElement = document?.getElementById(nlsConfigElementId)
+  const nlsConfig = nlsConfigElement?.getAttribute("data-settings")
+
+  if (!document || !nlsConfigElement || !nlsConfig) {
+    return undefined
+  }
+
+  try {
+    return JSON.parse(nlsConfig) as NlsConfiguration
+  } catch (error) {
+    console.error("[vscode] Failed to read or parse the NLS configuration.", error)
+    return undefined
+  }
+}
+
+let nlsConfig: NlsConfiguration | undefined
 try {
-  nlsConfig = JSON.parse(document.getElementById("vscode-remote-nls-configuration")!.getAttribute("data-settings")!)
-  if (nlsConfig._resolvedLanguagePackCoreLocation) {
+  nlsConfig = getNlsConfiguration(document)
+  if (nlsConfig?._resolvedLanguagePackCoreLocation) {
     const bundles = Object.create(null)
     nlsConfig.loadBundle = (bundle: any, _language: any, cb: any): void => {
       const result = bundles[bundle]
@@ -16,7 +52,7 @@ try {
         return cb(undefined, result)
       }
       // FIXME: Only works if path separators are /.
-      const path = nlsConfig._resolvedLanguagePackCoreLocation + "/" + bundle.replace(/\//g, "!") + ".nls.json"
+      const path = nlsConfig?._resolvedLanguagePackCoreLocation + "/" + bundle.replace(/\//g, "!") + ".nls.json"
       fetch(`${options.base}/vscode/resource/?path=${encodeURIComponent(path)}`)
         .then((response) => response.json())
         .then((json) => {
